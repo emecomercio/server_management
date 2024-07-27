@@ -6,8 +6,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-default_group="users" # Util mas abajo
-
 #### Funciones para verificar existencias ####
 group_exists() {
     local group_name="$1"
@@ -105,6 +103,7 @@ list_groups() {
 }
 #### Funciones de menu Usuario####
 create_user() {
+    default_group="users"
     request_username
     echo "Nota: deje en blanco si desea agregar al grupo por defecto '$default_group')"
     request_group
@@ -269,4 +268,91 @@ start_ssh() {
 stop_ssh() {
     systemctl stop sshd
     echo "El servicio SSH ha sido detenido."
+}
+
+# menu for above functions
+menu() {
+    while true; do
+        clear
+        echo "Seleccione una opción:"
+        echo "1. Gestión de grupos"
+        echo "2. Gestión usuarios"
+        echo "3. Gestión SSH"
+        echo "4. Salir"
+        read -p "Opción: " option
+        case $option in
+            1)
+                while true; do
+                    echo "Seleccione una opción:"
+                    echo "a. Crear grupo"
+                    echo "b. Eliminar grupo"
+                    echo "c. Listar grupo"
+                    echo "d. Listar todos los grupos"
+                    echo "e. Volver al menú principal"
+                    read -p "Opción: " group_option
+                    case $group_option in
+                        a) create_group ;;
+                        b) delete_group ;;
+                        c) list_group ;;
+                        d) list_groups ;;
+                        e) break ;;
+                        *) echo "Opción inválida. Inténtelo de nuevo." ;;
+                    esac
+                done
+                ;;
+            2)
+                while true; do
+                    echo "Seleccione una opción:"
+                    echo "a. Crear usuario"
+                    echo "b. Eliminar usuario"
+                    echo "c. Listar usuario (y sus grupos)"
+                    echo "d. Listar todos los usuarios"
+                    echo "e. Modificar nombre de usuario"
+                    echo "f. Modificar grupo primario"
+                    echo "g. Eliminar grupos secundarios"
+                    echo "h. Asignar grupos secundarios"
+                    echo "i. Volver al menú principal"
+                    read -p "Opción: " user_option
+                    case $user_option in
+                        a) create_user ;;
+                        b) delete_user ;;
+                        c) list_user ;;
+                        d) list_users ;;
+                        e) modify_username ;;
+                        f) modify_primary_usergroup ;;
+                        g) delete_secondary_usergroups ;;
+                        h) asign_secondary_usergroups ;;
+                        i) break ;;
+                        *) echo "Opción inválida. Inténtelo de nuevo." ;;
+                    esac
+                done
+                ;;
+            3)
+                while true; do
+                    echo "Seleccione una opción:"
+                    echo "a. Verificar estado del servicio SSH"
+                    echo "b. Habilitar servicio SSH"
+                    echo "c. Deshabilitar servicio SSH"
+                    echo "d. Iniciar servicio SSH"
+                    echo "e. Detener servicio SSH"
+                    echo "f. Volver al menú principal"
+                    read -p "Opción: " ssh_option
+                    case $ssh_option in
+                        a) check_ssh ;;
+                        b) enable_ssh ;;
+                        c) disable_ssh ;;
+                        d) start_ssh ;;
+                        e) stop_ssh ;;
+                        f) break ;;
+                        *) echo "Opción inválida. Inténtelo de nuevo." ;;
+                    esac
+                done
+                ;;
+            4)
+                echo "Saliendo del programa..."
+                exit 0
+                ;;
+            *) echo "Opción inválida. Inténtelo de nuevo." ;;
+        esac
+    done
 }
