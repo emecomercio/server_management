@@ -30,6 +30,31 @@ request_group() {
     read group_name
 
 }
+save_log() {
+    touch /var/log/users_created.log
+    touch /var/log/users_modified.log
+    touch /var/log/users_deleted.log
+    local username="$1"
+    local action="$2"
+    local info="$3"
+    local DATE=`date +%F`
+    local TIME`date +%T`
+    local log_file
+    local log_entry
+    if [ "$action" == "created" ]; then
+        log_file=/var/log/users_created.log
+        log_entry="Usuario $username creado el $DATE a las $TIME"
+    elif [ "$action" == "modified" ]; then
+        log_file=/var/log/users_modified.log
+        log_entry="Usuario $username modificado ($info) el $DATE a las $TIME"
+    elif [ "$action" == "deleted" ]; then
+        log_file=/var/log/users_deleted.log
+        log_entry="Usuario $username eliminado el $DATE a las $TIME"
+    fi
+    echo $log_entry >> $log_file
+}
+
+
 update_password() {
     local username="$1"
 
@@ -134,8 +159,9 @@ create_user() {
         group_name=$default_group
     fi
 
-    useradd -m -g $group_name $username
+    useradd -m -g $group_name -s /bin/bash $username 
     update_password $username
+    save_log $username "created"
     echo "Usuario $username creado y asignado $group_name como su grupo primario."
 }
 delete_user() {
@@ -149,6 +175,7 @@ delete_user() {
 
     userdel -r "$username"
     if [ $? -eq 0 ]; then
+        save_log $username "deleted"
         echo "Usuario $username eliminado exitosamente."
     else
         echo "Error al eliminar el usuario $username."
@@ -196,6 +223,7 @@ modify_username() {
     fi
 
     usermod -l "$new_username" "$old_username"
+    save_log $new_username "modified" "nombre de usuario"
     echo "Nombre de usuario cambiado de $old_username a $new_username."
 }
 modify_primary_usergroup() {
@@ -215,6 +243,7 @@ modify_primary_usergroup() {
     fi
 
     usermod -g "$new_group" "$username"
+    save_log $username "modified" "grupo primario"
     echo "El grupo primario del usuario $username ha sido cambiado a $new_group."
 }
 delete_secondary_usergroups() {
@@ -286,6 +315,7 @@ asign_secondary_usergroups() {
         echo "No se han ingresado grupos secundarios."
     else
         usermod -aG $secondary_groups $username
+        save_log $username "modified" "grupos secundarios"
         echo "Usuario $username añadido a los grupos: $secondary_groups."
     fi
 }

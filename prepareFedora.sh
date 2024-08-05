@@ -15,7 +15,7 @@ update_system() {
 install_utilities() {
     echo "Instalando utilidades..."
     sleep 3
-    dnf install -y curl wget grep tree
+    dnf install -y curl wget tree
     dnf install -y gedit
     dnf install -y gnome-tweaks
 }
@@ -75,6 +75,12 @@ install_vscode() {
     dnf check-update
     dnf install -y code
 }
+create_ssh_key() {
+    ssh-keygen -t rsa -b 4096 -C "$gitemail"
+    eval "$(ssh-agent -s)"
+    ssh-add ~/.ssh/id_rsa
+    cat ~/.ssh/id_rsa.pub
+}
 config_git() {
     echo "Configurando Git..."
     sleep 1
@@ -84,8 +90,17 @@ config_git() {
     read -r gitemail;
     sudo -u $SUDO_USER git config --global user.name "$gitname"
     sudo -u $SUDO_USER git config --global user.email "$gitemail"
-}
 
+    echo "¿Deseas crear una clave SSH? (s/n)"
+    read -r create_ssh;
+    if [ "$create_ssh" == "s" ]; then
+        create_ssh_key
+    elif [ "$create_ssh" == "n" ]; then
+        return
+    else
+        echo "Opción inválida"
+    fi
+}
 config_apache() {
     echo "Configurando Apache..."
     sleep 1
@@ -207,7 +222,7 @@ while true; do
                 clear
 
                 echo "Menú Instalaciones"
-                echo "1) Instalar utilidades (recomendado)"
+                echo "1) Instalar utilidades (gnome-tweaks, curl, gedit, wget, tree; recomendado)"
                 echo "2) Instalar git"
                 echo "3) Instalar apache"
                 echo "4) Instalar MySQL Server"
