@@ -5,7 +5,6 @@ if [ "$EUID" -ne 0 ]; then
   echo "Este script debe ejecutarse con permisos de superusuario (root)."
   exit 1
 fi
-
 # Funciones para verificar existencias
 group_exists() {
     local group_name="$1"
@@ -30,6 +29,27 @@ request_group() {
     read group_name
 
 }
+update_password() {
+    local username="$1"
+
+    while true; do
+        echo "Ingrese la contraseña del usuario (mínimo 8 caracteres):"
+        read -s password
+        echo "Confirme la contraseña del usuario:"
+        read -s password_confirm
+
+        if [ "$password" != "$password_confirm" ]; then
+            echo "Las contraseñas no coinciden. Inténtelo de nuevo."
+        elif [ ${#password} -lt 8 ]; then
+            echo "La contraseña debe tener al menos 8 caracteres. Inténtelo de nuevo."
+        else
+            break
+        fi
+    done
+
+    echo -e "$password\n$password" | passwd $username
+}
+# Gestión de logs
 save_log() {
     touch /var/log/users_created.log
     touch /var/log/users_modified.log
@@ -53,32 +73,76 @@ save_log() {
     fi
     echo $log_entry >> $log_file
 }
-
-
-update_password() {
-    local username="$1"
-
-    while true; do
-        echo "Ingrese la contraseña del usuario (mínimo 8 caracteres):"
-        read -s password
-        echo "Confirme la contraseña del usuario:"
-        read -s password_confirm
-
-        if [ "$password" != "$password_confirm" ]; then
-            echo "Las contraseñas no coinciden. Inténtelo de nuevo."
-        elif [ ${#password} -lt 8 ]; then
-            echo "La contraseña debe tener al menos 8 caracteres. Inténtelo de nuevo."
-        else
-            break
-        fi
-    done
-
-    echo -e "$password\n$password" | passwd $username
+read_log() {
+    local log_file="$1"
+    if [ ! -f "$log_file" ]; then
+        echo "El archivo de log '$log_file' no existe."
+        return
+    elif [ ! -s "$log_file" ]; then
+        echo "El archivo de log '$log_file' está vacío."
+        return
+    fi
+    echo "Contenido del archivo de log '$log_file':"
+    echo "-------------------------------------------------------"
+    cat "$log_file"
+}
+list_last_20_boots(){
+    echo "Listando los últimos 20 arranques del sistema:"
+    journalctl --list-boots | tail -n 20
+}
+list_last_15_ssh_boots() {
+    echo "Listando los últimos 15 arranques SSH del sistema:"
+    echo "Resultados con sshd.service:"
+    echo "----------------------------"
+    journalctl -u sshd.service | grep -i 'starting OpenSSH' | tail -n 15
+    echo "Resultados con ssh.service:"
+    echo "----------------------------"
+    journalctl -u ssh.service | grep -i 'starting OpenSSH' | tail -n 15
+}
+list_last_logins() {
+    echo "Listando los últimos inicios de sesión:"
+    lastlog
+}
+last_login_by_username(){
+    request_username
+    if ! user_exists "$username"; then
+        echo "El usuario '$username' no existe."
+        return
+    fi
+    lastlog -u "$username"
+}
+list_failed_ssh_boots() {
+    echo "Listando los arranques fallidos de SSH:"
+    if [ ! -f "/var/log/auth.log" ]; then
+        echo "El archivo de log '/var/log/auth.log' no existe."
+        return
+    elif [ ! -s "/var/log/auth.log" ]; then
+        echo "El archivo de log '/var/log/auth.log' está vacío."
+        return
+    fi
+    grep -i 'failed' /var/log/auth.log
+}
+list_failed_boots() {
+    echo "Listando los últimos 25 arranques fallidos del sistema:"
+    echo "------------------------------Failed------------------------------"
+    journalctl | grep --color=always -i 'failed' | tail -n 25
+    echo "------------------------------Failure------------------------------"
+    journalctl | grep --color=always -i 'failure' | tail -n 25
+    echo "------------------------------Error------------------------------"
+    journalctl | grep --color=always -i 'error' | tail -n 25
+    echo "------------------------------Denied------------------------------"
+    journalctl | grep --color=always -i 'denied' | tail -n 25
+    echo "------------------------------Refused------------------------------"
+    journalctl | grep --color=always -i 'refused' | tail -n 25
+    echo "------------------------------Disconnected------------------------------"
+    journalctl | grep --color=always -i 'disconnected' | tail -n 25
+    echo "------------------------------Unreachable------------------------------"
+    journalctl | grep --color=always -i 'unreachable' | tail -n 25
+    echo "------------------------------Timeout------------------------------"
+    journalctl | grep --color=always -i 'timeout' | tail -n 25
 }
 # Funciones de menu Grupo
 create_group() {
-    clear
-
     request_group
     if group_exists "$group_name"; then
         echo "El grupo '$group_name' ya existe."
@@ -88,8 +152,6 @@ create_group() {
     fi
 }
 delete_group() {
-    clear
-
     request_group
     if ! group_exists "$group_name"; then
         echo "El grupo '$group_name' no existe."
@@ -105,8 +167,6 @@ delete_group() {
     fi
 }
 list_group() {
-    clear
-
     request_group
     if group_exists "$group_name"; then
         echo "Listado de los usuarios del grupo '$group_name'"
@@ -123,8 +183,6 @@ list_group() {
     fi
 }
 list_groups() {
-    clear
-
     echo "Listado de grupos y sus usuarios:"
     echo -e "Nota: los usuarios listados son aquellos cuyo grupo es uno de sus grupos secundarios.\n"
 
@@ -141,7 +199,6 @@ list_groups() {
 }
 # Funciones de menu Usuario
 create_user() {
-    clear
     default_group="users"
 
     request_username
@@ -165,8 +222,6 @@ create_user() {
     echo "Usuario $username creado y asignado $group_name como su grupo primario."
 }
 delete_user() {
-    clear
-
     request_username
     if ! user_exists "$username"; then
         echo "El usuario '$username' no existe."
@@ -183,8 +238,6 @@ delete_user() {
     fi
 }
 list_user() {
-    clear
-
     request_username
     if user_exists "$username"; then
         echo "Listado de los grupos de $username"
@@ -195,8 +248,6 @@ list_user() {
     fi
 }
 list_users() {
-    clear
-
     echo "Listado de usuarios y todos sus grupos:"
     echo "Nota: el primero grupo es su grupo primario"
 
@@ -206,8 +257,6 @@ list_users() {
     done
 }
 modify_username() {
-    clear
-
     echo "Ingrese el nombre actual del usuario:"
     read old_username
     if ! user_exists "$old_username"; then
@@ -227,8 +276,6 @@ modify_username() {
     echo "Nombre de usuario cambiado de $old_username a $new_username."
 }
 modify_primary_usergroup() {
-    clear
-
     request_username
     if ! user_exists "$username"; then
         echo "El usuario '$username' no existe."
@@ -247,8 +294,6 @@ modify_primary_usergroup() {
     echo "El grupo primario del usuario $username ha sido cambiado a $new_group."
 }
 delete_secondary_usergroups() {
-    clear
-
     request_username
     if ! user_exists "$username"; then
         echo "El usuario '$username' no existe."
@@ -283,8 +328,6 @@ delete_secondary_usergroups() {
     fi
 }
 asign_secondary_usergroups() {
-    clear
-
     request_username
     if ! user_exists "$username"; then
         echo "El usuario '$username' no existe."
@@ -321,8 +364,6 @@ asign_secondary_usergroups() {
 }
 # Funciones de menu SSH
 check_ssh() {
-    clear
-
     systemctl is-active sshd > /dev/null 2>&1
     if [ $? -eq 0 ]; then
         echo "El servicio SSH está activo."
@@ -331,26 +372,18 @@ check_ssh() {
     fi
 }
 enable_ssh() {
-    clear
-
     systemctl enable sshd
     echo "El servicio SSH ha sido habilitado para el arranque."
 }
 disable_ssh() {
-    clear
-
     systemctl disable sshd
     echo "El servicio SSH ha sido deshabilitado para el arranque."
 }
 start_ssh() {
-    clear
-
     systemctl start sshd
     echo "El servicio SSH ha sido iniciado."
 }
 stop_ssh() {
-    clear
-
     systemctl stop sshd
     echo "El servicio SSH ha sido detenido."
 }
@@ -363,7 +396,8 @@ menu() {
         echo "1. Gestión de grupos"
         echo "2. Gestión usuarios"
         echo "3. Gestión SSH"
-        echo "4. Salir"
+        echo "4. Gestión de logs"
+        echo "5. Salir"
 
         read -p "Opción: " option
         case $option in
@@ -380,10 +414,18 @@ menu() {
 
                     read -p "Opción: " group_option
                     case $group_option in
-                        a) create_group ;;
-                        b) delete_group ;;
-                        c) list_group ;;
-                        d) list_groups ;;
+                        a)
+                            clear 
+                            create_group ;;
+                        b) 
+                            clear
+                            delete_group ;;
+                        c) 
+                            clear
+                            list_group ;;
+                        d) 
+                            clear
+                            list_groups ;;
                         e) break ;;
                         *) echo "Opción inválida. Inténtelo de nuevo." ;;
                     esac
@@ -407,14 +449,30 @@ menu() {
 
                     read -p "Opción: " user_option
                     case $user_option in
-                        a) create_user ;;
-                        b) delete_user ;;
-                        c) list_user ;;
-                        d) list_users ;;
-                        e) modify_username ;;
-                        f) modify_primary_usergroup ;;
-                        g) delete_secondary_usergroups ;;
-                        h) asign_secondary_usergroups ;;
+                        a) 
+                            clear
+                            create_user ;;
+                        b) 
+                            clear
+                            delete_user ;;
+                        c) 
+                            clear
+                            list_user ;;
+                        d) 
+                            clear
+                            list_users ;;
+                        e) 
+                            clear
+                            modify_username ;;
+                        f) 
+                            clear
+                            modify_primary_usergroup ;;
+                        g) 
+                            clear
+                            delete_secondary_usergroups ;;
+                        h) 
+                            clear
+                            asign_secondary_usergroups ;;
                         i) break ;;
                         *) echo "Opción inválida. Inténtelo de nuevo." ;;
                     esac
@@ -435,11 +493,21 @@ menu() {
                     
                     read -p "Opción: " ssh_option
                     case $ssh_option in
-                        a) check_ssh ;;
-                        b) enable_ssh ;;
-                        c) disable_ssh ;;
-                        d) start_ssh ;;
-                        e) stop_ssh ;;
+                        a) 
+                            clear
+                            check_ssh ;;
+                        b) 
+                            clear
+                            enable_ssh ;;
+                        c) 
+                            clear
+                            disable_ssh ;;
+                        d) 
+                            clear
+                            start_ssh ;;
+                        e) 
+                            clear
+                            stop_ssh ;;
                         f) break ;;
                         *) echo "Opción inválida. Inténtelo de nuevo." ;;
                     esac
@@ -447,7 +515,49 @@ menu() {
                 done
                 ;;
             4)
+                while true; do
+                    clear
+
+                    echo "Seleccione una opción:"
+                    echo "a. Listar los últimos 20 arranques del sistema"
+                    echo "b. Listar los últimos 15 arranques SSH"
+                    echo "c. Listar los últimos inicios de sesión"
+                    echo "d. Mostrar el último ingreso de un usuario específico"
+                    echo "e. Listar los arranques fallidos de SSH"
+                    echo "f. Listar los últimos arranques fallidos del sistema"
+                    echo "g. Volver al menú principal"
+                    
+                    read -p "Opción: " log_option
+                    case $log_option in
+                        a) 
+                            clear
+                            list_last_20_boots ;;
+                        b) 
+                            clear
+                            list_last_15_ssh_boots ;;
+                        c) 
+                            clear
+                            list_last_logins ;;
+                        d) 
+                            clear
+                            last_login_by_username ;;
+                        e) 
+                            clear
+                            list_failed_ssh_boots ;;
+                        f) 
+                            clear
+                            list_failed_boots ;;
+                        g) break ;;
+                        *) echo "Opción inválida. Inténtelo de nuevo." ;;
+                    esac
+                    continue_msg
+                done
+                ;;
+            5)
+                clear
                 echo "Saliendo del programa..."
+                sleep 3
+                clear
                 exit 0
                 ;;
             *) echo "Opción inválida. Inténtelo de nuevo." ;;
