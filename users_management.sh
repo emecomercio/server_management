@@ -3,7 +3,7 @@
 # Comprobación de permisos de superusuario
 if [ "$EUID" -ne 0 ]; then
   echo "Este script debe ejecutarse con permisos de superusuario (root)."
-  exit 1
+  exit
 fi
 # Funciones para verificar existencias
 group_exists() {
@@ -22,11 +22,13 @@ continue_msg() {
 request_username() {
     echo "Ingrese el nombre del usuario:"
     read username
-
+    username=$(echo "$username" | tr '[:upper:]' '[:lower:]')
 }
+
 request_group() {
     echo "Ingrese el nombre del grupo:"
     read group_name
+    group_name=$(echo "$group_name" | tr '[:upper:]' '[:lower:]')
 
 }
 update_password() {
@@ -51,46 +53,46 @@ update_password() {
 }
 # Gestión de logs
 save_log() {
-    touch /var/log/users_created.log
-    touch /var/log/users_modified.log
-    touch /var/log/users_deleted.log
+    touch /var/log/created_users.log
+    touch /var/log/modified_users.log
+    touch /var/log/deleted_users.log
     local username="$1"
     local action="$2"
     local info="$3"
     local DATE=`date +%F`
-    local TIME`date +%T`
+    local TIME=`date +%T`
     local log_file
     local log_entry
     if [ "$action" == "created" ]; then
-        log_file=/var/log/users_created.log
-        log_entry="Usuario $username creado el $DATE a las $TIME"
+        log_file=/var/log/created_users.log
+        log_entry="Usuario $username creado en la fecha $DATE a la hora $TIME"
     elif [ "$action" == "modified" ]; then
-        log_file=/var/log/users_modified.log
-        log_entry="Usuario $username modificado ($info) el $DATE a las $TIME"
+        log_file=/var/log/modified_users.log
+        log_entry="Usuario $username modificado ($info) en la fecha $DATE a la hora $TIME"
     elif [ "$action" == "deleted" ]; then
-        log_file=/var/log/users_deleted.log
-        log_entry="Usuario $username eliminado el $DATE a las $TIME"
+        log_file=/var/log/deleted_users.log
+        log_entry="Usuario $username eliminado en la fecha $DATE a la hora $TIME"
     fi
     echo $log_entry >> $log_file
 }
 read_log() {
-    local log_file="$1"
-    if [ ! -f "$log_file" ]; then
-        echo "El archivo de log '$log_file' no existe."
+    local log_file="$1.log"
+    if [ ! -f "/var/log/$log_file" ]; then
+        echo "El archivo de logs '$log_file' no existe."
         return
-    elif [ ! -s "$log_file" ]; then
-        echo "El archivo de log '$log_file' está vacío."
+    elif [ ! -s "/var/log/$log_file" ]; then
+        echo "El archivo de logs '$log_file' está vacío."
         return
     fi
     echo "Contenido del archivo de log '$log_file':"
     echo "-------------------------------------------------------"
-    cat "$log_file"
+    cat "/var/log/$log_file"
 }
-list_last_20_boots(){
+last_20_boots(){
     echo "Listando los últimos 20 arranques del sistema:"
     journalctl --list-boots | tail -n 20
 }
-list_last_15_ssh_boots() {
+last_15_ssh_boots() {
     echo "Listando los últimos 15 arranques SSH del sistema:"
     echo "Resultados con sshd.service:"
     echo "----------------------------"
@@ -99,7 +101,7 @@ list_last_15_ssh_boots() {
     echo "----------------------------"
     journalctl -u ssh.service | grep -i 'starting OpenSSH' | tail -n 15
 }
-list_last_logins() {
+last_logins() {
     echo "Listando los últimos inicios de sesión:"
     lastlog
 }
@@ -216,10 +218,11 @@ create_user() {
         group_name=$default_group
     fi
 
+    # Por defecto la carpeta es en /home/$username
     useradd -m -g $group_name -s /bin/bash $username 
     update_password $username
-    save_log $username "created"
-    echo "Usuario $username creado y asignado $group_name como su grupo primario."
+    save_log $username created
+    echo "Usuario $username creado y asignado '$group_name' como su grupo primario."
 }
 delete_user() {
     request_username
@@ -524,20 +527,23 @@ menu() {
                     echo "c. Listar los últimos inicios de sesión"
                     echo "d. Mostrar el último ingreso de un usuario específico"
                     echo "e. Listar los arranques fallidos de SSH"
-                    echo "f. Listar los últimos arranques fallidos del sistema"
-                    echo "g. Volver al menú principal"
+                    echo "f. Listar los últimos 25 arranques fallidos del sistema"
+                    echo "g. Listar los Custom Logs de usuarios creados"
+                    echo "h. Listar los Custom Logs de usuarios modificados"
+                    echo "i. Listar los Custom Logs de usuarios eliminados"
+                    echo "j. Volver al menú principal"
                     
                     read -p "Opción: " log_option
                     case $log_option in
                         a) 
                             clear
-                            list_last_20_boots ;;
+                            last_20_boots ;;
                         b) 
                             clear
-                            list_last_15_ssh_boots ;;
+                            last_15_ssh_boots ;;
                         c) 
                             clear
-                            list_last_logins ;;
+                            last_logins ;;
                         d) 
                             clear
                             last_login_by_username ;;
@@ -547,7 +553,16 @@ menu() {
                         f) 
                             clear
                             list_failed_boots ;;
-                        g) break ;;
+                        g)
+                            clear
+                            read_log created_users ;;
+                        h)
+                            clear
+                            read_log modified_users ;;
+                        i)
+                            clear
+                            read_log deleted_users ;;
+                        j) break ;;
                         *) echo "Opción inválida. Inténtelo de nuevo." ;;
                     esac
                     continue_msg
