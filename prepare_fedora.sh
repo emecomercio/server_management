@@ -104,6 +104,9 @@ config_git() {
 config_apache() {
     echo "Configurando Apache..."
     sleep 1
+    firewall-cmd --permanent --add-service=http
+    firewall-cmd --permanent --add-service=https
+    firewall-cmd --reload
     usermod -aG apache $USER
     echo "$SUDO_USER agregado a grupo apache"
     sleep 1
