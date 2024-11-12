@@ -1,5 +1,8 @@
 #!/bin/bash
-
+if [[ $EUID -ne 0 ]]; then
+   echo "Este script debe ejecutarse como administrador" >&2
+   exit 1
+fi
 continue_msg() {
     echo -e "\n--------------------------------"
     read -p "Presione Enter para continuar..."

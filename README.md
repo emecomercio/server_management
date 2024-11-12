@@ -15,7 +15,3 @@ This script automates the setup and configuration of a Fedora system. It include
 ### users_management
 
 This script provides a set of tools for managing users, groups, and SSH services on a Linux system. It allows the creation, deletion, and modification of users and groups, as well as management of the SSH service. The script is designed run with superuser (root) privileges and features an interactive menu system for ease of use.
-
-### install_sigto
-
-...
