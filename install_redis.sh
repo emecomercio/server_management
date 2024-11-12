@@ -1,24 +1,17 @@
-#!/bin/bash
-
-# Actualizar los repositorios y el sistema
-echo "Actualizando el sistema..."
-sudo dnf update -y
-
-# Instalar Redis
-echo "Instalando Redis..."
-sudo dnf install redis -y
+echo "Instalando Redis (Valkey)..."
+dnf install valkey-compat-redis -y
 
 # Iniciar el servicio de Redis
 echo "Iniciando Redis..."
-sudo systemctl start redis
+systemctl start valkey
 
 # Habilitar Redis para que se inicie al arrancar el sistema
 echo "Habilitando Redis al inicio..."
-sudo systemctl enable redis
+systemctl enable valkey
 
 # Verificar que Redis está corriendo
 echo "Verificando el estado de Redis..."
-sudo systemctl status redis | grep "Active"
+systemctl status valkey
 
 # Mostrar la versión de Redis instalada
 echo "Redis instalado con éxito. Versión de Redis:"
