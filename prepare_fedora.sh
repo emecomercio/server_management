@@ -51,7 +51,6 @@ install_redis() {
     systemctl status valkey
     echo "Redis instalado con éxito. Versión de Redis:"
     redis-server --version
-    echo "Configuración de Redis: para permitir persistencia, edita el archivo de configuración en /etc/redis.conf"
     echo "Instalación completada. Redis está en ejecución."
 }
 
@@ -68,6 +67,9 @@ install_php() {
 config_apache() {
     echo "Configurando Apache..."
     sleep 1
+
+    setsebool -P httpd_can_network_connect 1
+
     firewall-cmd --permanent --add-service=http
     firewall-cmd --permanent --add-service=https
     firewall-cmd --reload
