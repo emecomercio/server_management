@@ -71,7 +71,7 @@ config_apache() {
     firewall-cmd --permanent --add-service=http
     firewall-cmd --permanent --add-service=https
     firewall-cmd --reload
-    usermod -aG apache $USER
+    usermod -aG apache $SUDO_USER
     echo "$SUDO_USER agregado a grupo apache"
     sleep 1
     chown -R $SUDO_USER:apache /var/www
