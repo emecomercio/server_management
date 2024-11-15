@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ $EUID -ne 0 ]]; then
-   echo "Este script debe ejecutarse como administrador" >&2
-   exit 1
+    echo "Este script debe ejecutarse como administrador" >&2
+    exit 1
 fi
 continue_msg() {
     echo -e "\n--------------------------------"
@@ -55,13 +55,21 @@ install_redis() {
 }
 
 install_php() {
-   echo "Instalando PHP y librerias necesarias"
-   sleep 4
-   dnf install -y https://rpms.remirepo.net/fedora/remi-release-$(rpm -E %fedora).rpm
-   dnf makecache
-   dnf module reset php
-   dnf module enable php:remi-8.3
-   dnf install -y php php-cli php-common php-curl php-mysqlnd php-xml php-mbstring php-zip -y
+    echo "Instalando PHP y librerias necesarias"
+    sleep 4
+    dnf install -y https://rpms.remirepo.net/fedora/remi-release-$(rpm -E %fedora).rpm
+    dnf makecache
+    dnf module reset php
+    dnf module enable php:remi-8.3
+    dnf install -y php php-cli php-common php-curl php-mysqlnd php-xml php-mbstring php-zip -y
+}
+
+install_kde() {
+    dnf install @kde-desktop
+    dnf install sddm
+    systemctl enable sddm
+    systemctl start sddm
+    reboot
 }
 
 config_apache() {
@@ -98,82 +106,86 @@ while true; do
 
     read -p "Elija una opción [1-4]: " opcion_principal
     case $opcion_principal in
-        1)
-            update_system
-            ;;
-        2)
-            while true; do
-                clear
+    1)
+        update_system
+        ;;
+    2)
+        while true; do
+            clear
 
-                echo "Menú Instalaciones"
-                echo "1) Instalar Apache"
-                echo "2) Instalar MySQL Server"
-                echo "3) Instalar PHP"
-                echo "4) Instalar Composer"
-                echo "5) Instalar Redis (Valkey)"
-                echo "6) Volver al menú principal"
+            echo "Menú Instalaciones"
+            echo "1) Instalar Apache"
+            echo "2) Instalar MySQL Server"
+            echo "3) Instalar PHP"
+            echo "4) Instalar Composer"
+            echo "5) Instalar Redis (Valkey)"
+            echo "6) Instalar KDE Plasma"
+            echo "7) Volver al menú principal"
 
-                read -p "Elija una opción [1-6]: " opcion_instalaciones
-                case $opcion_instalaciones in
-                    1)
-                        install_apache
-                        ;;
-                    2)
-                        install_mysql
-                        ;;
-                    3)
-                        install_php
-                        ;;
-                    4)
-                        install_composer
-                        ;;
-                    5) 
-                        install_redis
-                        ;;
-                    6)
-                        break
-                        ;;
-                    *)
-                        echo "Opción no válida"
-                        ;;
-                esac
-                continue_msg
-            done
-            ;;
-        3)
-            while true; do
-                clear
+            read -p "Elija una opción [1-6]: " opcion_instalaciones
+            case $opcion_instalaciones in
+            1)
+                install_apache
+                ;;
+            2)
+                install_mysql
+                ;;
+            3)
+                install_php
+                ;;
+            4)
+                install_composer
+                ;;
+            5)
+                install_redis
+                ;;
+            6)
+                install_kde
+                ;;
+            7)
+                break
+                ;;
+            *)
+                echo "Opción no válida"
+                ;;
+            esac
+            continue_msg
+        done
+        ;;
+    3)
+        while true; do
+            clear
 
-                echo "Menú Configuraciones"
-                echo "1) Configurar Apache"
-                echo "2) Configurar MySQL Server (mysql_secure_installation)"
-                echo "3) Volver al menú principal"
+            echo "Menú Configuraciones"
+            echo "1) Configurar Apache"
+            echo "2) Configurar MySQL Server (mysql_secure_installation)"
+            echo "3) Volver al menú principal"
 
-                read -p "Elija una opción [1-3]: " opcion_configuraciones
-                case $opcion_configuraciones in
-                    1)
-                        config_apache
-                        ;;
-                    2)
-                        config_mysql_secure
-                        ;;
-                    3)
-                        break
-                        ;;
-                    *)
-                        echo "Opción no válida"
-                        ;;
-                esac
-                continue_msg
-            done
-            ;;
-        4)
-            echo "Saliendo..."
-            exit 0
-            ;;
-        *)
-            echo "Opción no válida"
-            ;;
+            read -p "Elija una opción [1-3]: " opcion_configuraciones
+            case $opcion_configuraciones in
+            1)
+                config_apache
+                ;;
+            2)
+                config_mysql_secure
+                ;;
+            3)
+                break
+                ;;
+            *)
+                echo "Opción no válida"
+                ;;
+            esac
+            continue_msg
+        done
+        ;;
+    4)
+        echo "Saliendo..."
+        exit 0
+        ;;
+    *)
+        echo "Opción no válida"
+        ;;
     esac
     continue_msg
 done
